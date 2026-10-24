@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Emberfall 3D — An Open World Adventure</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="game" width="960" height="600"></canvas>
+  <canvas id="minimap" width="160" height="120" title="Minimap"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div id="hud-name">Hero · Lv 1</div>
+      <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
+      <div class="bar mp"><div id="mp-fill"></div><span id="mp-text"></span></div>
+      <div class="bar xp"><div id="xp-fill"></div><span id="xp-text"></span></div>
+    </div>
+    <div class="hud-right">
+      <div>🪙 <span id="hud-gold">0</span></div>
+      <div id="hud-shards">💎 0/3 shards</div>
+      <div>🧪 <span id="hud-potions">0</span> <button id="btn-potion" class="mini-btn">Drink (H)</button> <button id="btn-mega" class="mini-btn">💊 Mega</button></div>
+    </div>
+    <div id="quest-tracker"></div>
+    <div class="hud-buttons">
+      <button id="btn-quests" class="mini-btn">📜 Quests (Q)</button>
+      <button id="btn-inventory" class="mini-btn">🎒 Inventory (I)</button>
+      <button id="btn-map" class="mini-btn">🗺️ Map (M)</button>
+      <button id="btn-pause" class="mini-btn">⏸ Pause</button>
+      <button id="btn-sound" class="mini-btn">🔊 Sound</button>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+  <div id="damage-layer"></div>
+  <div id="loading">🔥 Loading Emberfall 3D…</div>
+  <div id="webgl-error" class="hidden">⚠️ 3D could not load (Three.js failed to load or WebGL is unavailable). Please check your connection and try a modern browser with WebGL enabled.</div>
+  <div id="interact-prompt" class="hidden">Press <b>E</b> to interact</div>
+
+  <!-- Mobile controls -->
+  <div id="touch-controls" class="hidden">
+    <div id="joystick"><div id="joy-knob"></div></div>
+    <div class="touch-btns">
+      <button id="touch-attack">⚔️</button>
+      <button id="touch-interact">💬</button>
+      <button id="touch-potion">🧪</button>
+    </div>
+  </div>
+
+  <!-- TITLE -->
+  <section id="screen-title" class="screen">
+    <h1 class="logo">🔥 EMBERFALL 3D</h1>
+    <p class="tagline">A 3D open-world adventure across seven lands</p>
+    <button id="btn-new" class="big-btn">⚔️ New Game</button>
+    <button id="btn-continue" class="big-btn hidden">▶ Continue</button>
+    <button id="btn-reset-save" class="big-btn secondary">🗑️ Reset Save</button>
+    <button id="btn-how" class="big-btn secondary">🎮 How to Play</button>
+    <p class="cross-link">Also try <a href="https://armansoor.github.io/emberfall-open-world/" target="_blank" rel="noopener">Emberfall 2D →</a></p>
+    <p class="credit-line">Created by Abdur Rahman Mansoor · Built by Nyx / Muse</p>
+  </section>
+
+  <!-- HOW TO -->
+  <section id="screen-how" class="screen hidden">
+    <h2>How to Play</h2>
+    <div class="panel-text">
+      <p><b>Move:</b> WASD / Arrow keys / mobile joystick</p>
+      <p><b>Attack:</b> Space, J, mouse click, or ⚔️ button</p>
+      <p><b>Interact:</b> E / 💬 button — talk to villagers, pick up shards</p>
+      <p><b>Drink potion:</b> H / 🧪 button &nbsp; <b>Mega potion:</b> 💊 button &nbsp; <b>Quest log:</b> Q &nbsp; <b>Inventory:</b> I &nbsp; <b>World map:</b> M &nbsp; <b>Pause:</b> Esc / P</p>
+      <p>Collect the 3 elemental shards from the Forest, Desert and Snowfields, then face
+      Malachar in the Shadowlands. Talk to everyone in Ember Village — the shop,
+      side quests and the main quest all start there. Beyond the village lie the
+      Sunset Coast and the Stormpeak Highlands, with new NPCs, quests, treasure
+      chests, and tougher enemies.</p>
+    </div>
+    <button class="big-btn" data-back-title>← Back</button>
+  </section>
+
+  <!-- CHARACTER CREATION -->
+  <section id="screen-create" class="screen hidden">
+    <h2>Create Your Hero</h2>
+    <label class="field">Name
+      <input id="cc-name" type="text" maxlength="16" placeholder="e.g. Aria" autocomplete="off">
+    </label>
+    <div class="field">Class</div>
+    <div id="cc-classes" class="card-row">
+      <button class="choice-card selected" data-class="Knight"><span class="cc-emoji">🛡️</span><b>Knight</b><small>High HP, melee sword arc. Tanky and forgiving.</small></button>
+      <button class="choice-card" data-class="Mage"><span class="cc-emoji">🔮</span><b>Mage</b><small>Low HP, ranged firebolts that cost MP. Big damage.</small></button>
+      <button class="choice-card" data-class="Ranger"><span class="cc-emoji">🏹</span><b>Ranger</b><small>Balanced, fast arrows, bonus move speed.</small></button>
+    </div>
+    <div class="field">Appearance colour</div>
+    <div id="cc-preview" class="preview">🛡️ Knight</div>
+    <div id="cc-colors" class="card-row colors">
+      <button class="swatch selected" data-color="#e74c3c" style="background:#e74c3c" aria-label="Red"></button>
+      <button class="swatch" data-color="#3498db" style="background:#3498db" aria-label="Blue"></button>
+      <button class="swatch" data-color="#2ecc71" style="background:#2ecc71" aria-label="Green"></button>
+      <button class="swatch" data-color="#9b59b6" style="background:#9b59b6" aria-label="Purple"></button>
+      <button class="swatch" data-color="#f39c12" style="background:#f39c12" aria-label="Gold"></button>
+      <button class="swatch" data-color="#ecf0f1" style="background:#ecf0f1" aria-label="White"></button>
+      <button class="swatch" data-color="#1abc9c" style="background:#1abc9c" aria-label="Teal"></button>
+      <button class="swatch" data-color="#e67e22" style="background:#e67e22" aria-label="Orange"></button>
+      <button class="swatch" data-color="#fd79a8" style="background:#fd79a8" aria-label="Pink"></button>
+      <button class="swatch" data-color="#00cec9" style="background:#00cec9" aria-label="Cyan"></button>
+      <button class="swatch" data-color="#a29bfe" style="background:#a29bfe" aria-label="Lavender"></button>
+      <button class="swatch" data-color="#636e72" style="background:#636e72" aria-label="Grey"></button>
+    </div>
+    <div class="field">Difficulty</div>
+    <div id="cc-difficulty" class="card-row">
+      <button class="choice-card small" data-diff="Story"><b>Story</b><small>Enemies weaker</small></button>
+      <button class="choice-card small selected" data-diff="Normal"><b>Normal</b><small>As intended</small></button>
+      <button class="choice-card small" data-diff="Hardcore"><b>Hardcore</b><small>Enemies hit hard</small></button>
+    </div>
+    <div class="row-btns">
+      <button class="big-btn secondary" data-back-title>← Back</button>
+      <button id="btn-start" class="big-btn">🌅 Begin Adventure</button>
+    </div>
+  </section>
+
+  <!-- INTRO -->
+  <section id="screen-intro" class="screen hidden">
+    <h2>The Ember Falls</h2>
+    <div class="panel-text story">
+      <p>Long ago, the Ember Crystal kept the seven lands in balance. Then Malachar, the
+      Ashen King, shattered it and fled to the Shadowlands.</p>
+      <p>Three shards survived — hidden in the <b>Whispering Forest</b>, the
+      <b>Sunscorch Desert</b> and the <b>Frostbite Snowfields</b>, each watched by a guardian.</p>
+      <p id="intro-hero-line">You are the last Emberbearer. Elder Mara is waiting for you in Ember Village.</p>
+    </div>
+    <button id="btn-intro-go" class="big-btn">Enter the World →</button>
+  </section>
+
+  <!-- DIALOGUE -->
+  <div id="dialogue" class="dialogue hidden">
+    <div id="dlg-name">NPC</div>
+    <div id="dlg-text"></div>
+    <div id="dlg-actions"></div>
+  </div>
+
+  <!-- SHOP -->
+  <section id="screen-shop" class="screen modal hidden">
+    <h2 id="shop-title">🛒 Bram's General Store</h2>
+    <p>Your gold: 🪙 <span id="shop-gold">0</span></p>
+    <div id="shop-items"></div>
+    <button class="big-btn secondary" id="btn-shop-close">Leave Shop</button>
+  </section>
+
+  <!-- QUEST LOG -->
+  <section id="screen-quests" class="screen modal hidden">
+    <h2>📜 Quest Journal</h2>
+    <div id="quest-list"></div>
+    <button class="big-btn secondary" id="btn-quests-close">Close (Q)</button>
+  </section>
+
+  <!-- INVENTORY -->
+  <section id="screen-inventory" class="screen modal hidden">
+    <h2>🎒 Inventory</h2>
+    <div id="inventory-list"></div>
+    <button class="big-btn secondary" id="btn-inventory-close">Close (I)</button>
+  </section>
+
+  <!-- WORLD MAP -->
+  <section id="screen-map" class="screen modal hidden">
+    <h2>🗺️ World Map</h2>
+    <p class="map-note">Dark areas are unexplored. Yellow stars are discovered landmarks. Yellow diamonds are unclaimed shards.</p>
+    <canvas id="worldmap" width="640" height="480"></canvas>
+    <button class="big-btn secondary" id="btn-map-close">Close (M)</button>
+  </section>
+
+  <!-- PAUSE -->
+  <section id="screen-pause" class="screen modal hidden">
+    <h2>⏸ Paused</h2>
+    <button class="big-btn" id="btn-resume">▶ Resume</button>
+    <button class="big-btn secondary" id="btn-save">💾 Save Game</button>
+    <button class="big-btn secondary" id="btn-sound2">🔊 Toggle Sound</button>
+    <button class="big-btn secondary" id="btn-quit-title">🏠 Quit to Title</button>
+  </section>
+
+  <!-- DEATH -->
+  <section id="screen-death" class="screen modal hidden">
+    <h2>💀 You Have Fallen</h2>
+    <p>The Ember flickers… but does not go out. You wake in Ember Village, 10% of your gold lost.</p>
+    <button class="big-btn" id="btn-respawn">🔥 Respawn</button>
+  </section>
+
+  <!-- ENDING -->
+  <section id="screen-ending" class="screen hidden">
+    <h2>🌟 The Ember Restored</h2>
+    <div class="panel-text story">
+      <p>Malachar crumbles to ash. The three shards rise from your pack, fuse in a column
+      of warm light, and the Ember Crystal blazes whole once more.</p>
+      <p>Spring returns to the Snowfields. The desert blooms at its edges. And in Ember
+      Village, they light the lanterns in your honour.</p>
+      <p><b>The End — thank you for playing.</b></p>
+    </div>
+    <button class="big-btn" id="btn-credits">🎬 Roll Credits</button>
+  </section>
+
+  <!-- CREDITS -->
+  <section id="screen-credits" class="screen hidden">
+    <div id="credits-scroll">
+      <h1>EMBERFALL</h1>
+      <p>— END CREDITS —</p>
+      <p>&nbsp;</p><p>Created by</p><h3>Abdur Rahman Mansoor</h3>
+      <p>&nbsp;</p><p>Designed, Built &amp; Tested by</p><h3>Nyx / Muse</h3>
+      <p>&nbsp;</p><p>Starring</p><h3 id="credits-hero">You, the Emberbearer</h3>
+      <p>&nbsp;</p><p>Villain</p><h3>Malachar, the Ashen King</h3>
+      <p>&nbsp;</p><p>The Villagers of Ember Village</p><h3>Elder Mara · Bram the Shopkeeper<br>Farmer Lio · Scout Renn · Healer Sana<br>Doran the Blacksmith · Mira the Baker · Garrick the Guard<br>Finn the Fisherman · Ivy the Herbalist · Selene the Traveller</h3>
+      <p>&nbsp;</p><p>Music &amp; Sound</p><h3>A tiny WebAudio synthesiser</h3>
+      <p>&nbsp;</p><p>Engine</p><h3>Vanilla HTML · CSS · JavaScript · Canvas</h3>
+      <p>&nbsp;</p><p>Special Thanks</p><h3>Every MONSTIEZ &amp; BLINK<br>who believes in finishing the quest</h3>
+      <p>&nbsp;</p><p>&nbsp;</p><h3>🔥 Thanks for playing 🔥</h3>
+    </div>
+    <div class="credits-btns">
+      <button class="big-btn" id="btn-freeroam">🗺️ Keep Free-Roaming</button>
+      <button class="big-btn secondary" id="btn-ngplus">⭐ New Game+</button>
+    </div>
+  </section>
+</div>
+
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
