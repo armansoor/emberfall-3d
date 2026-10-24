@@ -60,6 +60,8 @@
     <button id="btn-continue" class="big-btn hidden">▶ Continue</button>
     <button id="btn-reset-save" class="big-btn secondary">🗑️ Reset Save</button>
     <button id="btn-how" class="big-btn secondary">🎮 How to Play</button>
+    <button id="btn-adult-title" class="big-btn secondary">🔞 Adult Story Mode (21+)</button>
+    <p class="free-note">🆓 Free to play — no account, no purchase, no paywall.</p>
     <p class="cross-link">Also try <a href="https://armansoor.github.io/emberfall-open-world/" target="_blank" rel="noopener">Emberfall 2D →</a></p>
     <p class="credit-line">Created by Abdur Rahman Mansoor · Built by Nyx / Muse</p>
   </section>
@@ -75,8 +77,10 @@
       <p>Collect the 3 elemental shards from the Forest, Desert and Snowfields, then face
       Malachar in the Shadowlands. Talk to everyone in Ember Village — the shop,
       side quests and the main quest all start there. Beyond the village lie the
-      Sunset Coast and the Stormpeak Highlands, with new NPCs, quests, treasure
+      Sunset Coast, the Stormpeak Highlands, and the new Moonlit Vale to the far east
+      (Moonhaven, Moonlit Lake, Vale Ruins, Starfall Observatory), with new NPCs, quests, treasure
       chests, and tougher enemies.</p>
+      <p><b>Adult Story Mode (optional, 21+ only):</b> off by default. Turn it on from the title or pause menu — you must enter a birth year showing you are 21 or older and confirm “I am 21 or older”. No birth year is stored. It adds optional adult romance (Elara, 27, and Kael, 29) and a mature tavern quest; the main story works the same with it on or off.</p>
     </div>
     <button class="big-btn" data-back-title>← Back</button>
   </section>
@@ -177,7 +181,27 @@
     <button class="big-btn" id="btn-resume">▶ Resume</button>
     <button class="big-btn secondary" id="btn-save">💾 Save Game</button>
     <button class="big-btn secondary" id="btn-sound2">🔊 Toggle Sound</button>
+    <button class="big-btn secondary" id="btn-adult-mode">🔞 Adult Story Mode: OFF (21+)</button>
     <button class="big-btn secondary" id="btn-quit-title">🏠 Quit to Title</button>
+  </section>
+
+  <!-- AGE GATE: Adult Story Mode, 21+ only. No birth year is stored. -->
+  <section id="screen-agegate" class="screen modal hidden">
+    <h2>🔞 Adult Story Mode — 21+ Only</h2>
+    <div class="panel-text warning-box">
+      <p><b>Content warning:</b> mature themes — romance, alcohol in the tavern, violence, and moral choices. Intimate moments are suggestive dialogue with a fade-to-black only, never graphic detail.</p>
+      <p>Adult Story Mode is <b>off by default</b>. Romance here is adult-to-adult and consensual only, and you can decline or end a romance at any time. There are no child characters in this game.</p>
+      <p>Only a yes/no flag is saved. <b>Your birth year is never stored.</b></p>
+    </div>
+    <label class="field">Birth year
+      <input id="age-birth-year" type="number" inputmode="numeric" min="1900" max="2100" placeholder="e.g. 1998" autocomplete="off">
+    </label>
+    <label class="check-row"><input id="age-confirm" type="checkbox"> I am 21 or older</label>
+    <p id="age-error" class="age-error" aria-live="polite"></p>
+    <div class="row-btns">
+      <button class="big-btn secondary" id="btn-age-cancel">← Cancel</button>
+      <button class="big-btn" id="btn-age-confirm">✅ Enable Adult Story Mode</button>
+    </div>
   </section>
 
   <!-- DEATH -->
@@ -209,7 +233,8 @@
       <p>&nbsp;</p><p>Designed, Built &amp; Tested by</p><h3>Nyx / Muse</h3>
       <p>&nbsp;</p><p>Starring</p><h3 id="credits-hero">You, the Emberbearer</h3>
       <p>&nbsp;</p><p>Villain</p><h3>Malachar, the Ashen King</h3>
-      <p>&nbsp;</p><p>The Villagers of Ember Village</p><h3>Elder Mara · Bram the Shopkeeper<br>Farmer Lio · Scout Renn · Healer Sana<br>Doran the Blacksmith · Mira the Baker · Garrick the Guard<br>Finn the Fisherman · Ivy the Herbalist · Selene the Traveller</h3>
+      <p>&nbsp;</p><p>The Villagers of Ember Village</p><h3>Elder Mara · Bram the Shopkeeper<br>Farmer Lio · Scout Renn · Healer Sana<br>Doran the Blacksmith · Mira the Baker · Garrick the Guard<br>Finn the Fisherman · Ivy the Herbalist · Selene the Traveller<br>Elara the Innkeeper · Kael the Caravan Guard (Moonhaven)</h3>
+      <p>&nbsp;</p><p>Free to play</p><h3>No account, no purchase, no paywall</h3>
       <p>&nbsp;</p><p>Music &amp; Sound</p><h3>A tiny WebAudio synthesiser</h3>
       <p>&nbsp;</p><p>Engine</p><h3>Vanilla HTML · CSS · JavaScript · Canvas</h3>
       <p>&nbsp;</p><p>Special Thanks</p><h3>Every MONSTIEZ &amp; BLINK<br>who believes in finishing the quest</h3>

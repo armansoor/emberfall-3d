@@ -1,12 +1,14 @@
 'use strict';
 /* Emberfall — world data: biomes, props/collision, NPCs, shards, spawns. */
-const WORLD = { W: 5760, H: 4320, TILE: 64 };
+const WORLD = { W: 7680, H: 5760, TILE: 64 };
 const VILLAGE = { x: 1440, y: 1980, w: 960, h: 820 }; // south-centre (unchanged)
 const SPAWN = { x: 1900, y: 2420 }; // village square (unchanged)
 
 function getBiome(x, y) {
   if (x >= VILLAGE.x && x < VILLAGE.x + VILLAGE.w && y >= VILLAGE.y && y < VILLAGE.y + VILLAGE.h) return 'village';
   // NEW territory only — every original coordinate keeps its original biome.
+  // Moonlit Vale is the new eastern strip (x >= 5760), beyond the old world's edge.
+  if (x >= 5760) return 'vale';        // Moonlit Vale: new in this expansion
   if (x >= 4200) return 'coast';       // Sunset Coast: east of the old world
   if (y >= 3100) return 'highlands';   // Stormpeak Highlands: south of the old world
   if (y < 1400) return x < 1920 ? 'forest' : 'desert';
@@ -15,7 +17,7 @@ function getBiome(x, y) {
 const BIOME_COLORS = {
   village: ['#6aa84f', '#639c49'], forest: ['#2d5a27', '#285120'],
   desert: ['#d9b36c', '#cfa95f'], snow: ['#dfe9f2', '#d2e0ee'], shadow: ['#3a2b4a', '#342744'],
-  coast: ['#a8d8e8', '#9ccfe0'], highlands: ['#8a9ba8', '#7d8e9c']
+  coast: ['#a8d8e8', '#9ccfe0'], highlands: ['#8a9ba8', '#7d8e9c'], vale: ['#5b7a6e', '#527063']
 };
 
 const SHARD_SPOTS = [
@@ -43,14 +45,20 @@ const LANDMARKS = [
   { id: 'ruins', name: 'Old Ember Ruins', x: 3400, y: 1200, type: 'ruins' },
   { id: 'cave', name: 'Spider Cave', x: 2800, y: 3800, type: 'dungeon' },
   { id: 'enemy_camp', name: 'Shadow Camp', x: 3000, y: 2600, type: 'camp' },
-  { id: 'cliffs', name: 'Salt Cliffs', x: 5400, y: 2200, type: 'landmark' }
+  { id: 'cliffs', name: 'Salt Cliffs', x: 5400, y: 2200, type: 'landmark' },
+  { id: 'moonhaven', name: 'Moonhaven', x: 6600, y: 1200, type: 'settlement' },
+  { id: 'moonlit_lake', name: 'Moonlit Lake', x: 6400, y: 2000, type: 'water' },
+  { id: 'vale_ruins', name: 'Vale Ruins', x: 7000, y: 800, type: 'ruins' },
+  { id: 'observatory', name: 'Starfall Observatory', x: 6800, y: 2600, type: 'landmark' }
 ];
 /* Roads: walkable, drawn on the ground and on the maps. Points are [x, y] in world space. */
 const ROADS = [
   { points: [[1900, 2420], [1900, 1500], [1200, 700], [520, 460]] },
   { points: [[1900, 2420], [2800, 2000], [3800, 1600], [4700, 1200]] },
   { points: [[1900, 2420], [1900, 3000], [1500, 3700]] },
-  { points: [[1900, 2420], [3000, 2600], [3320, 2260]] }
+  { points: [[1900, 2420], [3000, 2600], [3320, 2260]] },
+  { points: [[4700, 1200], [5600, 1200], [6600, 1200]] },
+  { points: [[6600, 1200], [6400, 2000], [6800, 2600]] }
 ];
 const FISH_SPOTS = [
   { id: 'fish1', x: 5450, y: 900 }, { id: 'fish2', x: 5450, y: 1800 }, { id: 'fish3', x: 5000, y: 2700 }
@@ -62,9 +70,10 @@ const CHESTS = [
   { id: 'chest_snow', x: 900, y: 2600, gold: 100, potion: 'hp' },
   { id: 'chest_coast', x: 5200, y: 1400, gold: 150, potion: 'mega' },
   { id: 'chest_highlands', x: 2600, y: 3900, gold: 150, potion: 'elixir' },
-  { id: 'chest_hidden', x: 1200, y: 700, gold: 200, potion: 'mega' }
+  { id: 'chest_hidden', x: 1200, y: 700, gold: 200, potion: 'mega' },
+  { id: 'chest_vale', x: 6600, y: 1500, gold: 200, potion: 'elixir' }
 ];
-const BIOME_NAMES = { village: 'Ember Village', forest: 'Whispering Forest', desert: 'Sunscorch Desert', snow: 'Frostbite Snowfields', shadow: 'The Shadowlands', coast: 'Sunset Coast', highlands: 'Stormpeak Highlands' };
+const BIOME_NAMES = { village: 'Ember Village', forest: 'Whispering Forest', desert: 'Sunscorch Desert', snow: 'Frostbite Snowfields', shadow: 'The Shadowlands', coast: 'Sunset Coast', highlands: 'Stormpeak Highlands', vale: 'Moonlit Vale' };
 
 /* Deterministic seeded RNG so the world is identical on every load. */
 function mulberry32(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -72,7 +81,7 @@ function mulberry32(seed) { return function () { seed |= 0; seed = seed + 0x6D2B
 const PROPS = []; // {x,y,w,h,kind,biome,solid}
 (function buildProps() {
   const rnd = mulberry32(1337);
-  const kinds = { forest: 'tree', desert: 'cactus', snow: 'pine', shadow: 'dead', village: 'flower', coast: 'palm', highlands: 'peak' };
+  const kinds = { forest: 'tree', desert: 'cactus', snow: 'pine', shadow: 'dead', village: 'flower', coast: 'palm', highlands: 'peak', vale: 'willow' };
   const clearOf = (x, y) => (
     Math.hypot(x - SPAWN.x, y - SPAWN.y) < 170 ||
     SHARD_SPOTS.some(s => Math.hypot(x - s.x, y - s.y) < 120) ||
@@ -83,9 +92,9 @@ const PROPS = []; // {x,y,w,h,kind,biome,solid}
     FISH_SPOTS.some(s => Math.hypot(x - s.x, y - s.y) < 90) ||
     CHESTS.some(s => Math.hypot(x - s.x, y - s.y) < 90) ||
     // new NPC clearings (see NPCS below)
-    [[1950,2700],[1750,2350],[4700,1200],[2250,2400],[1450,2300],[1500,3700]].some(p => Math.hypot(x - p[0], y - p[1]) < 90)
+    [[1950,2700],[1750,2350],[4700,1200],[2250,2400],[1450,2300],[1500,3700],[2050,2500],[6500,1350],[6600,1200],[6400,2000],[6600,1500]].some(p => Math.hypot(x - p[0], y - p[1]) < 90)
   );
-  for (let i = 0; i < 1100; i++) {
+  for (let i = 0; i < 1400; i++) {
     const x = 40 + rnd() * (WORLD.W - 80), y = 40 + rnd() * (WORLD.H - 80);
     const b = getBiome(x, y);
     if (clearOf(x, y)) continue;
@@ -102,7 +111,9 @@ const PROPS = []; // {x,y,w,h,kind,biome,solid}
     { x: 1350, y: 3600, w: 130, h: 100, kind: 'house', label: 'Outpost' },
     { x: 1680, y: 3600, w: 130, h: 100, kind: 'house', label: 'Outpost' },
     { x: 4550, y: 1080, w: 130, h: 100, kind: 'house', label: 'Fish Hut' },
-    { x: 4880, y: 1080, w: 130, h: 100, kind: 'house', label: 'Fish Hut' }
+    { x: 4880, y: 1080, w: 130, h: 100, kind: 'house', label: 'Fish Hut' },
+    { x: 6450, y: 1080, w: 130, h: 100, kind: 'house', label: 'Moonhaven Inn' },
+    { x: 6750, y: 1080, w: 130, h: 100, kind: 'house', label: 'Moonhaven Hall' }
   ];
   buildings.forEach(b => PROPS.push(Object.assign({ biome: 'village', solid: true }, b)));
   // Border rocks keep the player inside the world
@@ -122,7 +133,10 @@ const NPCS = [
   { id: 'finn', name: 'Finn the Fisherman', icon: '🎣', x: 4700, y: 1200, color: '#2980b9', role: 'side_fish', gender: 'man' },
   { id: 'ivy', name: 'Ivy the Herbalist', icon: '🌿', x: 2250, y: 2400, color: '#27ae60', role: 'side_herbs', gender: 'woman' },
   { id: 'garrick', name: 'Garrick the Guard', icon: '🛡️', x: 1450, y: 2300, color: '#2c3e50', role: 'guard', gender: 'man' },
-  { id: 'selene', name: 'Selene the Traveller', icon: '🧳', x: 1500, y: 3700, color: '#8e44ad', role: 'traveller', gender: 'woman' }
+  { id: 'selene', name: 'Selene the Traveller', icon: '🧳', x: 1500, y: 3700, color: '#8e44ad', role: 'traveller', gender: 'woman' },
+  // --- Adult Story Mode romance NPCs (adults only; ages stated in adult dialogue) ---
+  { id: 'elara', name: 'Elara the Innkeeper', icon: '🏮', x: 2050, y: 2500, color: '#e67e22', role: 'romance_elara', gender: 'woman', adult: true, age: 27 },
+  { id: 'kael', name: 'Kael the Caravan Guard', icon: '🐎', x: 6500, y: 1350, color: '#2e86c1', role: 'romance_kael', gender: 'man', adult: true, age: 29 }
 ];
 
 const ENEMY_TYPES = {
@@ -136,6 +150,7 @@ const ENEMY_TYPES = {
   spider:  { name: 'Mountain Spider', icon: '🕷️', hp: 45, dmg: 13, speed: 145, xp: 38, gold: [9, 18],  r: 15, color: '#2c3e50', biomes: ['highlands'], behaviour: 'rusher' },
   archer:  { name: 'Goblin Archer', icon: '🏹', hp: 50, dmg: 12, speed: 80,  xp: 40, gold: [10, 18], r: 15, color: '#8e6e2e', biomes: ['highlands', 'shadow'], behaviour: 'ranged' },
   golem:   { name: 'Stone Golem', icon: '🗿', hp: 190, dmg: 20, speed: 45,  xp: 70, gold: [20, 35], r: 24, color: '#7f8c8d', biomes: ['highlands'], behaviour: 'armoured', armour: 5 },
+  wisp:    { name: 'Moonlit Wisp', icon: '✨', hp: 55,  dmg: 14, speed: 110, xp: 40, gold: [10, 20], r: 15, color: '#9b59b6', biomes: ['vale'] },
   guardian:{ name: 'Guardian',     icon: '🗿', hp: 150, dmg: 16, speed: 60,  xp: 90, gold: [30, 50], r: 26, color: '#935116', biomes: [] },
   boss:    { name: 'Malachar, the Ashen King', icon: '👹', hp: 420, dmg: 22, speed: 72, xp: 300, gold: [200, 200], r: 34, color: '#641e16', biomes: [] }
 };

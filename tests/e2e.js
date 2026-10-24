@@ -218,11 +218,11 @@ function near(E, x, y) { E.state.player.x = x; E.state.player.z = y; E.state.pla
   /* --- expanded world, colours, NPCs --- */
   {
     const { w, E } = fresh(); const S = play(w, E);
-    check('world: expanded to 5760x4320', w.WORLD.W === 5760 && w.WORLD.H === 4320);
+    check('world: expanded to 7680x5760', w.WORLD.W === 7680 && w.WORLD.H === 5760);
     check('world: coast biome east of the old world', E.getBiome(5000, 1000) === 'coast');
     check('world: highlands biome south of the old world', E.getBiome(1500, 3700) === 'highlands');
     check('world: original biomes unchanged', E.getBiome(600, 500) === 'forest' && E.getBiome(3300, 500) === 'desert' && E.getBiome(600, 2400) === 'snow' && E.getBiome(3300, 2400) === 'shadow');
-    check('npcs: 11 NPCs including 6 new men/women', E.NPCS_ref.length === 11 && ['doran', 'mira', 'finn', 'ivy', 'garrick', 'selene'].every(id => E.NPCS_ref.some(n => n.id === id)));
+    check('npcs: 13 NPCs including 6 new men/women + 2 adult romance NPCs', E.NPCS_ref.length === 13 && ['doran', 'mira', 'finn', 'ivy', 'garrick', 'selene', 'elara', 'kael'].every(id => E.NPCS_ref.some(n => n.id === id)));
     check('npcs: new NPCs are 3 men + 3 women', ['doran', 'finn', 'garrick'].every(id => E.NPCS_ref.find(n => n.id === id).gender === 'man') && ['mira', 'ivy', 'selene'].every(id => E.NPCS_ref.find(n => n.id === id).gender === 'woman'));
     check('colours: at least 12 character-creation swatches', w.document.querySelectorAll('#cc-colors .swatch').length >= 12);
     check('landmarks: 9 landmarks including settlements, secret clearing, cave, camp', E.LANDMARKS_ref.length >= 9);
@@ -321,6 +321,123 @@ function near(E, x, y) { E.state.player.x = x; E.state.player.z = y; E.state.pla
     E.closeMap(); check('map: world map closes back to playing', E.mode === 'playing');
     E.openInventory(); check('inventory: inventory opens (I) and shows the armour formula', E.mode === 'inventory' && $('inventory-list').innerHTML.includes('max(1'));
     E.closeInventory(); check('inventory: inventory closes back to playing', E.mode === 'playing');
+    w.close();
+  }
+
+  /* --- EXPANSION: Moonlit Vale (7680x5760), new region, minimap coverage --- */
+  {
+    const { w, E } = fresh(); const S = play(w, E);
+    check('expansion: world is 7680x5760', w.WORLD.W === 7680 && w.WORLD.H === 5760);
+    check('expansion: Moonlit Vale biome in the new eastern strip', E.getBiome(6600, 1200) === 'vale' && E.getBiome(7000, 800) === 'vale');
+    check('expansion: original biomes still unchanged', E.getBiome(600, 500) === 'forest' && E.getBiome(3300, 500) === 'desert' && E.getBiome(5000, 1000) === 'coast' && E.getBiome(1500, 3700) === 'highlands' && E.getBiome(1900, 2400) === 'village');
+    check('expansion: Moonhaven + Moonlit Lake + Vale Ruins + Observatory landmarks exist', ['moonhaven', 'moonlit_lake', 'vale_ruins', 'observatory'].every(id => E.LANDMARKS_ref.some(l => l.id === id)));
+    check('expansion: treasure chest in the Vale', E.CHESTS_ref.some(c => c.id === 'chest_vale'));
+    check('expansion: Vale chest opens for gold', (() => { const c = E.CHESTS_ref.find(x => x.id === 'chest_vale'); const g0 = S.player.gold; near(E, c.x, c.y); return E.doInteract() === true && S.player.gold > g0; })());
+    check('expansion: Moonlit Wisp enemies spawn in the Vale', S.enemies.some(e => e.type === 'wisp'));
+    check('expansion: ground tiles cover the full new world (108 tiles)', E.groundTileCount >= 100);
+    check('expansion: minimap + world map draw over the new size without throwing', (() => { try { E.drawMinimap(); E.drawWorldMap(); return true; } catch (e) { console.log(e); return false; } })());
+    w.close();
+  }
+  /* --- EXPANSION: Adult Story Mode age gate --- */
+  {
+    const CY = new Date().getFullYear();
+    const a = fresh(); play(a.w, a.E);
+    check('adult gate: under-21 birth year is blocked', a.E.verifyAge(CY - 20, true) === false && a.E.getAdultMode() === false);
+    check('adult gate: missing confirmation is blocked', a.E.verifyAge(CY - 30, false) === false && a.E.getAdultMode() === false);
+    check('adult gate: exactly 21 is allowed', a.E.verifyAge(CY - 21, true) === true && a.E.getAdultMode() === true);
+    a.w.close();
+    const b = fresh(); play(b.w, b.E);
+    check('adult gate: 21+ birth year is allowed', b.E.verifyAge(CY - 30, true) === true && b.E.getAdultMode() === true);
+    check('adult gate: age-gate screen elements exist (input + confirm + buttons)', !!b.w.document.getElementById('screen-agegate') && !!b.w.document.getElementById('age-birth-year') && !!b.w.document.getElementById('age-confirm') && !!b.w.document.getElementById('btn-age-confirm'));
+    b.w.close();
+  }
+  /* --- EXPANSION: adult dialogue hidden when OFF; no minors anywhere --- */
+  {
+    const { w, E, $ } = fresh(); const S = play(w, E);
+    check('adult safety: no NPC is a minor and romance NPCs are stated adults (27, 29)', E.NPCS_ref.every(n => !n.age || n.age >= 21) && E.NPCS_ref.find(n => n.id === 'elara').age === 27 && E.NPCS_ref.find(n => n.id === 'kael').age === 29);
+    const elara = E.NPCS_ref.find(n => n.id === 'elara'); near(E, elara.x, elara.y); E.doInteract();
+    const dlgText = $('dlg-text').textContent, dlgBtns = [...$('dlg-actions').querySelectorAll('button')].map(b => b.textContent).join(' ');
+    check('adult hidden OFF: Elara dialogue has no flirt/date/partner content', !/flirt|date|partner|romance/i.test(dlgText) && !/flirt|date|partner|Get to know/i.test(dlgBtns));
+    check('adult hidden OFF: quest journal has no romance/adult rows', (() => { E.openQuests(); const h = $('quest-list').innerHTML; E.closeQuests(); return !/Romance|Tavern Dilemma/.test(h); })());
+    w.close();
+  }
+  /* --- EXPANSION: romance progression + fade-to-black + ending a romance --- */
+  {
+    const CY = new Date().getFullYear();
+    const { w, E, $ } = fresh(); const S = play(w, E);
+    const clickDlg = sub => { const b = [...$('dlg-actions').querySelectorAll('button')].find(x => x.textContent.includes(sub)); if (!b) throw new Error('missing dialogue button: ' + sub); b.click(); return true; };
+    E.verifyAge(CY - 27, true);
+    const elara = E.NPCS_ref.find(n => n.id === 'elara'); near(E, elara.x, elara.y); E.doInteract();
+    check('romance: Elara meet dialogue states her adult age (27)', $('dlg-text').textContent.includes('27'));
+    clickDlg('Get to know');
+    check('romance: meet advances Elara to stage 1', E.romanceStage('elara') === 1);
+    near(E, elara.x, elara.y); E.doInteract(); clickDlg('compliment');
+    check('romance: flirt advances Elara to stage 2', E.romanceStage('elara') === 2);
+    near(E, elara.x, elara.y); E.doInteract(); clickDlg('Yes — a date');
+    check('romance: date advances Elara to stage 3 (dating)', E.romanceStage('elara') === 3);
+    const g0 = S.player.gold; near(E, elara.x, elara.y); E.doInteract(); clickDlg('become partners');
+    check('romance: milestone advances Elara to stage 4 with a reward', E.romanceStage('elara') === 4 && S.player.gold === g0 + 50);
+    near(E, elara.x, elara.y); E.doInteract(); clickDlg('quiet evening');
+    check('romance: intimate moment is fade-to-black only, never graphic', $('dlg-text').textContent.includes('fades to black') && !/naked|undress|sexually|erotic/i.test($('dlg-text').textContent));
+    clickDlg('Morning'); clickDlg('End this romance');
+    check('romance: player can end the romance at any point (back to stage 0)', E.romanceStage('elara') === 0);
+    const kael = E.NPCS_ref.find(n => n.id === 'kael'); near(E, kael.x, kael.y); E.doInteract();
+    check('romance: Kael meet dialogue states his adult age (29)', $('dlg-text').textContent.includes('29'));
+    clickDlg('Get to know'); near(E, kael.x, kael.y); E.doInteract(); clickDlg('Share a story');
+    near(E, kael.x, kael.y); E.doInteract(); clickDlg('Yes — a date');
+    near(E, kael.x, kael.y); E.doInteract(); clickDlg('become partners');
+    check('romance: Kael progresses meet -> flirt -> date -> partners', E.romanceStage('kael') === 4);
+    w.close();
+  }
+  /* --- EXPANSION: mature Tavern Dilemma quest --- */
+  {
+    const CY = new Date().getFullYear();
+    const { w, E, $ } = fresh(); const S = play(w, E);
+    const clickDlg = sub => { const b = [...$('dlg-actions').querySelectorAll('button')].find(x => x.textContent.includes(sub)); if (!b) throw new Error('missing dialogue button: ' + sub); b.click(); return true; };
+    E.verifyAge(CY - 30, true);
+    const elara = E.NPCS_ref.find(n => n.id === 'elara'); near(E, elara.x, elara.y); E.doInteract(); clickDlg('tavern dilemma'); clickDlg('Help with the dilemma');
+    check('adult quest: Tavern Dilemma accepted', S.quests.adultQuest.state === 1);
+    const g0 = S.player.gold; near(E, elara.x, elara.y); E.doInteract(); clickDlg('Resolve the tavern dilemma'); clickDlg('Talk it out peacefully');
+    check('adult quest: peaceful resolution completes it (+80 gold, choice recorded)', S.quests.adultQuest.state === 2 && S.quests.adultQuest.choice === 'peaceful' && S.player.gold === g0 + 80);
+    w.close();
+  }
+  /* --- EXPANSION: adult flag save/load persistence + corrupt/missing defaults OFF --- */
+  {
+    const CY = new Date().getFullYear(); const birthYear = CY - 28;
+    const { w, E } = fresh(); const S = play(w, E);
+    E.verifyAge(birthYear, true); E.setRomance('elara', 3);
+    check('adult save: save writes with adult mode on', E.saveGame() === true);
+    const saved = w.localStorage.getItem(E.SAVE_KEY);
+    check('adult save: birth year is never stored in the save', saved && !saved.includes(String(birthYear)));
+    E.disableAdultMode(); E.setRomance('elara', 0);
+    check('adult save: load restores adult flag + romance stage', E.loadGame() === true && E.getAdultMode() === true && E.romanceStage('elara') === 3);
+    const tampered = JSON.parse(w.localStorage.getItem(E.SAVE_KEY)); delete tampered.adultMode; tampered.quests.romance.elara = 99;
+    w.localStorage.setItem(E.SAVE_KEY, JSON.stringify(tampered));
+    check('adult save: missing/corrupt adult state defaults to OFF / stage 0', E.loadGame() === true && E.getAdultMode() === false && E.romanceStage('elara') === 0);
+    w.close();
+  }
+  /* --- EXPANSION: adult mode does not break the main story --- */
+  {
+    const CY = new Date().getFullYear();
+    const { w, E, $ } = fresh(); const S = play(w, E);
+    E.verifyAge(CY - 25, true);
+    const mara = E.NPCS_ref.find(n => n.role === 'elder'); near(E, mara.x, mara.y); E.doInteract(); $('dlg-actions').querySelector('button').click();
+    check('adult on: main quest still accepts with adult mode on', S.quests.main.stage === 1);
+    w.close();
+  }
+  /* --- EXPANSION: responsive UI rules + touch targets + free-to-play --- */
+  {
+    const { w, E, $ } = fresh(); play(w, E);
+    const css = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    check('ui: small-mobile breakpoint (~400px) present', css.includes('@media (max-width:400px)'));
+    check('ui: tablet breakpoint (~768px) present', css.includes('@media (max-width:768px)'));
+    check('ui: touch targets at least ~44px (mini-btn + dialogue buttons)', css.includes('min-height:44px'));
+    check('ui: dialogue is scrollable', css.includes('.dialogue{max-height') && css.includes('overflow-y:auto'));
+    check('ui: shop/quest/inventory lists scroll inside their panels', css.includes('#shop-items') && css.includes('overflow-y:auto'));
+    check('ui: age-gate screen + toggle buttons exist and gate starts hidden', !!$('screen-agegate') && $('screen-agegate').classList.contains('hidden') && !!$('btn-adult-mode') && !!$('btn-adult-title'));
+    check('ui: touch buttons exist (joystick, attack, interact, potion)', !!$('joystick') && !!$('touch-attack') && !!$('touch-interact') && !!$('touch-potion'));
+    check('free: game states free, no account, no purchase', html.includes('Free to play') && html.includes('no account, no purchase'));
     w.close();
   }
   console.log(`\n==== RESULT: ${passed} passed, ${failed} failed ====`);
